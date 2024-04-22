@@ -1,0 +1,17 @@
+cask__get() {
+    curl localhost:8000/get/$2
+}
+
+cask__set() {
+    curl -XPOST localhost:8000/set -d "{\"key\": \"$2\", \"value\": \"$3\"}"
+}
+
+cask__delete() {
+    curl -XDELETE localhost:8000/delete/$1
+}
+
+if type "cask__$1" >/dev/null 2>&1; then
+    "cask__$1" "$@"
+else
+    echo "Not supported"
+fi
