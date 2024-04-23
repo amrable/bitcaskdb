@@ -7,7 +7,7 @@ cask__set() {
 }
 
 cask__delete() {
-    curl -XDELETE localhost:8000/delete/$1
+    curl -XDELETE localhost:8000/delete/$2
 }
 
 if type "cask__$1" >/dev/null 2>&1; then

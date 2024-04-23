@@ -1,59 +1,19 @@
 package caskdb
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"io/fs"
 	"os"
 )
 
-// DiskStore is a Log-Structured Hash Table as described in the BitCask paper. We
-// keep appending the data to a file, like a log. DiskStorage maintains an in-memory
-// hash table called KeyDir, which keeps the row's location on the disk.
-//
-// The idea is simple yet brilliant:
-//   - Write the record to the disk
-//   - Update the internal hash table to point to that byte offset
-//   - Whenever we get a read request, check the internal hash table for the address,
-//     fetch that and return
-//
-// KeyDir does not store values, only their locations.
-//
-// The above approach solves a lot of problems:
-//   - Writes are insanely fast since you are just appending to the file
-//   - Reads are insanely fast since you do only one disk seek. In B-Tree backed
-//     storage, there could be 2-3 disk seeks
-//
-// However, there are drawbacks too:
-//   - We need to maintain an in-memory hash table KeyDir. A database with a large
-//     number of keys would require more RAM
-//   - Since we need to build the KeyDir at initialisation, it will affect the startup
-//     time too
-//   - Deleted keys need to be purged from the file to reduce the file size
-//
-// Read the paper for more details: https://riak.com/assets/bitcask-intro.pdf
-//
-// DiskStore provides two simple operations to get and set key value pairs. Both key
-// and value need to be of string type, and all the data is persisted to disk.
-// During startup, DiskStorage loads all the existing KV pair metadata, and it will
-// throw an error if the file is invalid or corrupt.
-//
-// Note that if the database file is large, the initialisation will take time
-// accordingly. The initialisation is also a blocking operation; till it is completed,
-// we cannot use the database.
-//
-// Typical usage example:
-//
-//		store, _ := NewDiskStore("books.db")
-//	   	store.Set("othello", "shakespeare")
-//	   	author := store.Get("othello")
 type DiskStore struct {
 	f    *os.File
-	addr map[string][2]int64
+	addr map[string]KeyEntry
 }
 
 func isFileExists(fileName string) bool {
-	// https://stackoverflow.com/a/12518877
 	if _, err := os.Stat(fileName); err == nil || errors.Is(err, fs.ErrExist) {
 		return true
 	}
@@ -67,14 +27,14 @@ func NewDiskStore(fileName string) (*DiskStore, error) {
 
 	if !isFileExists(fileName) {
 		f, e = os.Create(fileName)
-		d = &DiskStore{f, make(map[string][2]int64)}
+		d = &DiskStore{f, make(map[string]KeyEntry)}
 	} else {
 		f, e = os.OpenFile(fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, os.ModeAppend)
 
 		if e != nil {
 			return nil, e
 		}
-		d = &DiskStore{f, make(map[string][2]int64)}
+		d = &DiskStore{f, make(map[string]KeyEntry)}
 		d.load()
 	}
 	return d, nil
@@ -87,23 +47,35 @@ func (d *DiskStore) load() {
 		panic(e)
 	}
 
-	offset := 0
-	for offset < n {
-		_, keySize, valueSize := DecodeHeader(buf[offset : offset+HeaderSize])
-		_, key, _ := DecodeKV(buf[offset : offset+HeaderSize+int(keySize)+int(valueSize)])
-		d.addr[key] = [2]int64{int64(offset), HeaderSize + int64(keySize) + int64(valueSize)}
-		offset = offset + HeaderSize + int(keySize) + int(valueSize)
+	offset := uint32(0)
+	for offset < uint32(n) {
+		h := Header{}
+		r := Record{}
+		err := h.DecodeHeader(buf[offset : offset+HeaderSize])
+		err = r.DecodeKV(buf[offset : offset+HeaderSize+h.KeySize+h.ValSize])
+
+		if err != nil {
+			panic(err)
+		}
+
+		if h.Meta&1 == 0 {
+			d.addr[r.Key] = KeyEntry{h.Timestamp, offset, HeaderSize + h.KeySize + h.ValSize}
+		} else {
+			delete(d.addr, r.Key)
+		}
+
+		offset = offset + HeaderSize + h.KeySize + h.ValSize
 	}
 }
 
 func (d *DiskStore) Get(key string) string {
-	pos, ok := d.addr[key]
+	keyDir, ok := d.addr[key]
 	if !ok {
 		return ""
 	}
-	seekVal := pos[0]
-	size := pos[1]
-	_, err := d.f.Seek(seekVal, 0)
+	seekVal := keyDir.position
+	size := keyDir.totalSize
+	_, err := d.f.Seek(int64(seekVal), 0)
 	if err != nil {
 		panic(err)
 	}
@@ -112,16 +84,46 @@ func (d *DiskStore) Get(key string) string {
 	if err != nil && err != io.EOF {
 		panic(err)
 	}
+	r := Record{}
+	err = r.DecodeKV(buf)
+	if err != nil {
+		panic(err)
+	}
 
-	_, _, value := DecodeKV(buf)
-	return value
+	return r.Value
 }
 
 func (d *DiskStore) Set(key string, value string) {
 	stat, _ := d.f.Stat()
-	size, encoded := EncodeKV(0, key, value)
-	d.addr[key] = [2]int64{stat.Size(), int64(size)}
-	_, err := d.f.Write(encoded)
+	r := NewRecord(key, value, false)
+
+	buf := new(bytes.Buffer)
+	err := r.EncodeKV(buf)
+
+	if err != nil {
+		panic(err)
+	}
+
+	d.addr[key] = KeyEntry{r.Header.Timestamp, uint32(stat.Size()), r.RecordSize}
+	_, err = d.f.Write(buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (d *DiskStore) Delete(key string) {
+	r := NewRecord(key, "", true)
+
+	buf := new(bytes.Buffer)
+	err := r.EncodeKV(buf)
+
+	if err != nil {
+		panic(err)
+	}
+
+	delete(d.addr, key)
+
+	_, err = d.f.Write(buf.Bytes())
 	if err != nil {
 		panic(err)
 	}

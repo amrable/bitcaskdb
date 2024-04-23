@@ -51,12 +51,14 @@ func Set(w http.ResponseWriter, r *http.Request) {
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["key"]
+	d, _ := caskdb.NewDiskStore(os.Getenv("DB_DIR") + "/" + os.Getenv("DB_CURRENT_FILE"))
+	defer d.Close()
 
-	// Implement your delete logic here
-	log.Infof("Deleting key %s", key)
+	key := mux.Vars(r)["key"]
 
-	// Return a success response
+	log.WithFields(log.Fields{
+		"key": key,
+	}).Info("Delete record")
+	d.Delete(key)
 	w.WriteHeader(http.StatusNoContent)
 }
