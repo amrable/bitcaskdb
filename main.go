@@ -36,5 +36,6 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
+	log.Info("Listening on http://", srv.Addr)
 	log.Fatal(srv.ListenAndServe())
 }
