@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/avinassh/go-caskdb/caskdb"
+	"github.com/amrable/go-caskdb/caskdb"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 )
 
 type Record struct {
@@ -15,16 +14,8 @@ type Record struct {
 }
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	d, e := caskdb.NewDiskStore(os.Getenv("DB_DIR") + "/" + os.Getenv("DB_CURRENT_FILE"))
-	defer d.Close()
-
-	if e != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(e.Error() + "\n"))
-	}
-
 	key := mux.Vars(r)["key"]
-	value := d.Get(key)
+	value := caskdb.Instance.Get(key)
 	log.WithFields(log.Fields{
 		"key":   key,
 		"value": value,
@@ -34,8 +25,6 @@ func Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func Set(w http.ResponseWriter, r *http.Request) {
-	d, _ := caskdb.NewDiskStore(os.Getenv("DB_DIR") + "/" + os.Getenv("DB_CURRENT_FILE"))
-	defer d.Close()
 	decoder := json.NewDecoder(r.Body)
 	var data Record
 	e := decoder.Decode(&data)
@@ -46,19 +35,16 @@ func Set(w http.ResponseWriter, r *http.Request) {
 		"key":   data.Key,
 		"value": data.Value,
 	}).Info("Set record")
-	d.Set(data.Key, data.Value)
+	caskdb.Instance.Set(data.Key, data.Value)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	d, _ := caskdb.NewDiskStore(os.Getenv("DB_DIR") + "/" + os.Getenv("DB_CURRENT_FILE"))
-	defer d.Close()
-
 	key := mux.Vars(r)["key"]
 
 	log.WithFields(log.Fields{
 		"key": key,
 	}).Info("Delete record")
-	d.Delete(key)
+	caskdb.Instance.Delete(key)
 	w.WriteHeader(http.StatusNoContent)
 }

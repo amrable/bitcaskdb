@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/avinassh/go-caskdb/caskdb"
-	"github.com/avinassh/go-caskdb/handlers"
+	"github.com/amrable/go-caskdb/caskdb"
+	"github.com/amrable/go-caskdb/handlers"
 	"github.com/gorilla/mux"
 	"github.com/lpernett/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -25,12 +25,14 @@ func main() {
 		log.Fatal(e)
 	}
 
+	caskdb.Init()
+	defer caskdb.Close()
+	defer caskdb.Purge()
+
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{key}", handlers.Get).Methods("GET")
 	r.HandleFunc("/set", handlers.Set).Methods("POST")
 	r.HandleFunc("/delete/{key}", handlers.Delete).Methods("DELETE")
-
-	defer caskdb.Purge()
 
 	srv := &http.Server{
 		Handler:      r,

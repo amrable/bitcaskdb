@@ -1,4 +1,4 @@
-module github.com/avinassh/go-caskdb
+module github.com/amrable/go-caskdb
 
 go 1.19
 
