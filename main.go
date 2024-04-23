@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/avinassh/go-caskdb/caskdb"
 	"github.com/avinassh/go-caskdb/handlers"
 	"github.com/gorilla/mux"
 	"github.com/lpernett/godotenv"
@@ -28,6 +29,8 @@ func main() {
 	r.HandleFunc("/get/{key}", handlers.Get).Methods("GET")
 	r.HandleFunc("/set", handlers.Set).Methods("POST")
 	r.HandleFunc("/delete/{key}", handlers.Delete).Methods("DELETE")
+
+	defer caskdb.Purge()
 
 	srv := &http.Server{
 		Handler:      r,

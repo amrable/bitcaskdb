@@ -1,0 +1,7 @@
+TIMEFORMAT='It took %R seconds.'
+time {
+    for i in {1..40}
+    do
+        ./caskdb-client set a a
+    done
+}

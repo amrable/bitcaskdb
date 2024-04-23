@@ -17,5 +17,5 @@ Inspired by [go-caskdb](https://github.com/avinassh/go-caskdb/tree/final)
 ### TODOS
 - [ ] Open file once instead of opening it for every request
 - [ ] Create new file after hitting FILE_LIMIT
-- [ ] Create a garbage collector (merge process)
+- [X] Create a garbage collector (merge process)
 - [ ] Create/Use hint files

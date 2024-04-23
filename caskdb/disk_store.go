@@ -41,7 +41,7 @@ func NewDiskStore(fileName string) (*DiskStore, error) {
 }
 
 func (d *DiskStore) load() {
-	buf := make([]byte, 1024)
+	buf := make([]byte, 1048576)
 	n, e := d.f.Read(buf)
 	if e != nil && e != io.EOF {
 		panic(e)
@@ -58,7 +58,7 @@ func (d *DiskStore) load() {
 			panic(err)
 		}
 
-		if h.Meta&1 == 0 {
+		if !r.IsDeleted() {
 			d.addr[r.Key] = KeyEntry{h.Timestamp, offset, HeaderSize + h.KeySize + h.ValSize}
 		} else {
 			delete(d.addr, r.Key)

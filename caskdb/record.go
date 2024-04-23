@@ -71,3 +71,7 @@ func (r *Record) CalculateCheckSum() uint32 {
 	buf := append(headerBuf.Bytes(), kvBuf...)
 	return crc32.ChecksumIEEE(buf)
 }
+
+func (r *Record) IsDeleted() bool {
+	return r.Header.Meta&1 == 1
+}
