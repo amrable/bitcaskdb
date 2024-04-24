@@ -1,5 +1,7 @@
 # Bitcaskdb - Disk based Log Structured Hash Table Store
 
+This project is implementation for [bitcask paper](https://riak.com/assets/bitcask-intro.pdf)
+
 Inspired by [go-caskdb](https://github.com/avinassh/go-caskdb/tree/final)
 
 ## Steps to run locally
@@ -12,9 +14,7 @@ Inspired by [go-caskdb](https://github.com/avinassh/go-caskdb/tree/final)
   - run `./caskdb-client delete key` to delete the value of "key"
 - Or use http requests to set/get/delete
 
-## WIP
-
-### TODOS
+## WIP - TODOS
 - [ ] Handle concurrent writes
 - [X] Open file once instead of opening it for every request
 - [ ] Create new file after hitting FILE_LIMIT
