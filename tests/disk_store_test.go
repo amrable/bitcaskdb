@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/avinassh/go-caskdb/caskdb"
+	"github.com/amrable/go-caskdb/caskdb"
 	"os"
 	"testing"
 )

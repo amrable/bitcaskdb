@@ -2,7 +2,7 @@ package test
 
 import (
 	"bytes"
-	"github.com/avinassh/go-caskdb/caskdb"
+	"github.com/amrable/go-caskdb/caskdb"
 	"testing"
 	"time"
 )
